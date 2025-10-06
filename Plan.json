@@ -1,0 +1,146 @@
+{
+  "name": "Gulf News Daily Video",
+  "nodes": [
+    {
+      "parameters": {
+        "cronExpression": "0 6 * * *",
+        "timezone": "Asia/Dubai"
+      },
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "YOUR_SHEET1_ID",
+        "range": "Sheet1!A2:B6",
+        "options": {}
+      },
+      "name": "Fetch Top 5 Stories",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const story = $input.item.json.B;\nconst title = $input.item.json.A;\nreturn [{json:{title,story_hinglish: story}}];"
+      },
+      "name": "Hinglish AI (Optional)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst audioPath = `./audio/${$input.item.json.title}.mp3`;\nconst audioLength = $input.item.json.story_hinglish.split(' ').length/2.5;\nfs.writeFileSync(audioPath, 'audio content');\nreturn [{json:{title:$input.item.json.title,audioPath,audioLength}}];"
+      },
+      "name": "Generate Audio",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "file": "={{$json[\"audioPath\"]}}",
+        "options": {},
+        "credentials": "Cloudinary Account"
+      },
+      "name": "Upload Audio Cloudinary",
+      "type": "n8n-nodes-base.cloudinary",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const count = Math.ceil($input.item.json.audioLength/15);\nconst images = [];\nfor(let i=0;i<count;i++) images.push(`https://dummyimage.com/1024x1024/000/fff&text=${i+1}`);\nreturn [{json:{image_urls:images}}];"
+      },
+      "name": "Generate Images",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const videoUrl = `https://cloudinary.com/demo/video/${$input.item.json.title}.mp4`;\nreturn [{json:{video_url:videoUrl}}];"
+      },
+      "name": "Generate Video (Wav2Video / Cloudinary)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "YOUR_SHEET2_ID",
+        "range": "Sheet2!A2:E2",
+        "valueInputMode": "RAW",
+        "options": {
+          "data": [
+            "={{$input.item.json.title}}",
+            "={{$json[\"audio_url\"]}}",
+            "={{$json[\"image_urls\"].join(',')}}",
+            "={{$json[\"video_url\"]}}",
+            "Pending"
+          ]
+        }
+      },
+      "name": "Save to Sheet2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "Daily Trigger": {
+      "main": [
+        [
+          { "node": "Fetch Top 5 Stories", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch Top 5 Stories": {
+      "main": [
+        [
+          { "node": "Hinglish AI (Optional)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Hinglish AI (Optional)": {
+      "main": [
+        [
+          { "node": "Generate Audio", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate Audio": {
+      "main": [
+        [
+          { "node": "Upload Audio Cloudinary", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Upload Audio Cloudinary": {
+      "main": [
+        [
+          { "node": "Generate Images", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate Images": {
+      "main": [
+        [
+          { "node": "Generate Video (Wav2Video / Cloudinary)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate Video (Wav2Video / Cloudinary)": {
+      "main": [
+        [
+          { "node": "Save to Sheet2", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}
