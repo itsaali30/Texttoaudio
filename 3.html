@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Google Sheets to Speech Converter</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div id="app" class="container p-4">
+  <h2 class="mb-4">🎤 Google Sheets to Speech Batch Converter</h2>
+  
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">Google Sheet Configuration</h5>
+      
+      <div class="mb-3">
+        <label class="form-label">Google Sheet Export URL or ID</label>
+        <input v-model="sheetUrl" type="text" class="form-control" 
+          placeholder="Paste full Google Sheets URL or just the Sheet ID">
+        <small class="form-text text-muted">
+          Example: https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit...
+          <br>Or just: 1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0
+        </small>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Sheet Name (Tab)</label>
+          <input v-model="sheetName" type="text" class="form-control" placeholder="e.g., Sheet1" value="Sheet1">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Column Letter</label>
+          <input v-model="columnLetter" type="text" class="form-control" placeholder="A, B, C..." value="A" maxlength="3">
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Language</label>
+        <select v-model="lang" class="form-select">
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+          <option value="hi-IN">Hindi (India)</option>
+          <option value="fr-FR">French</option>
+          <option value="es-ES">Spanish</option>
+          <option value="de-DE">German</option>
+          <option value="it-IT">Italian</option>
+          <option value="pt-BR">Portuguese</option>
+          <option value="ja-JP">Japanese</option>
+          <option value="zh-CN">Chinese (Simplified)</option>
+        </select>
+      </div>
+      
+      <button @click="fetchFromSheet" class="btn btn-primary" :disabled="loading">
+        {{ loading ? 'Fetching...' : 'Load from Google Sheet' }}
+      </button>
+    </div>
+  </div>
+  
+  <div v-if="status" class="alert" :class="status.type" role="alert">
+    {{ status.message }}
+  </div>
+  
+  <div v-if="items.length > 0" class="card">
+    <div class="card-body">
+      <h5 class="card-title">Processing Queue ({{ completedCount }}/{{ items.length }})</h5>
+      
+      <div class="mb-3">
+        <button @click="startProcessing" class="btn btn-success" :disabled="loading || isProcessing">
+          {{ isProcessing ? 'Processing... ' + progressPercent + '%' : 'Start Converting to Speech' }}
+        </button>
+        <button @click="clearAll" class="btn btn-secondary ms-2" :disabled="isProcessing">
+          Clear All
+        </button>
+      </div>
+      
+      <div class="progress mb-3">
+        <div class="progress-bar" role="progressbar" :style="{ width: progressPercent + '%' }" :aria-valuenow="progressPercent" aria-valuemin="0" aria-valuemax="100">
+          {{ progressPercent }}%
+        </div>
+      </div>
+      
+      <div style="max-height: 500px; overflow-y: auto;">
+        <div v-for="(item, index) in items" :key="index" class="mb-2 p-2 border rounded">
+          <div class="d-flex justify-content-between align-items-start">
+            <div style="flex: 1;">
+              <strong>{{ index + 1 }}.</strong> 
+              <span>{{ item.text.substring(0, 70) }}<span v-if="item.text.length > 70">...</span></span>
+            </div>
+            <span class="badge ms-2" :class="getBadgeClass(item.status)">
+              {{ item.status }}
+            </span>
+          </div>
+          <small v-if="item.error" class="text-danger d-block mt-1">❌ {{ item.error }}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed } = Vue;
+
+createApp({
+  setup() {
+    const sheetUrl = ref("");
+    const sheetName = ref("Sheet1");
+    const columnLetter = ref("A");
+    const lang = ref("en-US");
+    const loading = ref(false);
+    const isProcessing = ref(false);
+    const items = ref([]);
+    const status = ref(null);
+    
+    const progressPercent = computed(() => {
+      if (items.value.length === 0) return 0;
+      const completed = items.value.filter(i => i.status === 'completed' || i.status === 'error').length;
+      return Math.round((completed / items.value.length) * 100);
+    });
+    
+    const completedCount = computed(() => {
+      return items.value.filter(i => i.status === 'completed').length;
+    });
+    
+    const getBadgeClass = (st) => {
+      if (st === 'completed') return 'bg-success';
+      if (st === 'error') return 'bg-danger';
+      if (st === 'processing') return 'bg-warning text-dark';
+      return 'bg-secondary';
+    };
+    
+    const extractSheetId = (input) => {
+      const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      return match ? match[1] : input;
+    };
+    
+    const fetchFromSheet = async () => {
+      if (!sheetUrl.value.trim()) {
+        status.value = { type: 'alert-danger', message: '❌ Please enter Sheet URL or ID' };
+        return;
+      }
+      
+      loading.value = true;
+      status.value = { type: 'alert-info', message: 'Fetching data from Google Sheet...' };
+      items.value = [];
+      
+      try {
+        const sheetId = extractSheetId(sheetUrl.value);
+        
+        // Convert column letter to number (A=1, B=2, etc.)
+        const colNum = columnLetter.value.toUpperCase().charCodeAt(0) - 64;
+        
+        // Use CSV export URL
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/query?tq=SELECT * WHERE A IS NOT NULL&gid=0&tqx=out:csv`;
+        
+        const response = await fetch(csvUrl);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: Sheet not found or not publicly accessible`);
+        }
+        
+        const csvText = await response.text();
+        
+        // Parse CSV
+        const lines = csvText.trim().split('\n');
+        if (lines.length < 2) {
+          throw new Error('No data found in sheet');
+        }
+        
+        // Extract column data (skip header)
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+          // Simple CSV parsing - handle quotes
+          const cells = lines[i].match(/("([^"]*)"|[^,]+)/g) || [];
+          let cell = cells[colNum - 1] || '';
+          
+          // Remove quotes if present
+          cell = cell.replace(/^"(.*)"$/, '$1').trim();
+          
+          if (cell.length > 0) {
+            data.push(cell);
+          }
+        }
+        
+        if (data.length === 0) {
+          throw new Error(`No data found in column ${columnLetter.value.toUpperCase()}`);
+        }
+        
+        // Create items
+        items.value = data.map((text, index) => ({
+          index: index + 1,
+          text: text,
+          status: 'pending',
+          error: null,
+          filename: `speech_${String(index + 1).padStart(4, '0')}.webm`
+        }));
+        
+        status.value = { 
+          type: 'alert-success', 
+          message: `✅ Loaded ${data.length} items. Ready to convert to speech!` 
+        };
+      } catch (err) {
+        status.value = { type: 'alert-danger', message: `❌ Error: ${err.message}` };
+        items.value = [];
+      } finally {
+        loading.value = false;
+      }
+    };
+    
+    const startProcessing = async () => {
+      if (items.value.length === 0) return;
+      
+      isProcessing.value = true;
+      status.value = { type: 'alert-info', message: `Processing ${items.value.length} items...` };
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < items.value.length; i++) {
+        try {
+          await processItem(i);
+          successCount++;
+        } catch (err) {
+          errorCount++;
+        }
+      }
+      
+      isProcessing.value = false;
+      status.value = { 
+        type: 'alert-success', 
+        message: `✅ Complete! Converted: ${successCount}, Errors: ${errorCount}` 
+      };
+    };
+    
+    const processItem = (index) => {
+      return new Promise((resolve, reject) => {
+        const item = items.value[index];
+        item.status = 'processing';
+        
+        const synth = window.speechSynthesis;
+        synth.cancel();
+        
+        const utter = new SpeechSynthesisUtterance(item.text);
+        utter.lang = lang.value;
+        utter.rate = 1;
+        utter.pitch = 1;
+        utter.volume = 1;
+        
+        try {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const dest = audioContext.createMediaStreamDestination();
+          const recorder = new MediaRecorder(dest.stream);
+          const chunks = [];
+          
+          recorder.ondataavailable = e => chunks.push(e.data);
+          
+          recorder.onstop = () => {
+            try {
+              const blob = new Blob(chunks, { type: 'audio/webm' });
+              const url = URL.createObjectURL(blob);
+              
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = item.filename;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              
+              item.status = 'completed';
+              setTimeout(resolve, 1000);
+            } catch (err) {
+              item.status = 'error';
+              item.error = err.message;
+              setTimeout(reject, 500);
+            }
+          };
+          
+          const source = audioContext.createMediaStreamSource(dest.stream);
+          source.connect(audioContext.destination);
+          recorder.start();
+          synth.speak(utter);
+          
+          utter.onend = () => {
+            recorder.stop();
+          };
+          
+          utter.onerror = (e) => {
+            synth.cancel();
+            recorder.stop();
+            item.status = 'error';
+            item.error = e.error || 'Speech synthesis error';
+            setTimeout(reject, 500);
+          };
+        } catch (err) {
+          item.status = 'error';
+          item.error = err.message;
+          setTimeout(reject, 500);
+        }
+      });
+    };
+    
+    const clearAll = () => {
+      items.value = [];
+      status.value = null;
+    };
+    
+    return {
+      sheetUrl,
+      sheetName,
+      columnLetter,
+      lang,
+      loading,
+      isProcessing,
+      items,
+      status,
+      progressPercent,
+      completedCount,
+      getBadgeClass,
+      fetchFromSheet,
+      startProcessing,
+      clearAll
+    };
+  }
+}).mount("#app");
+</script>
+</body>
+</html>
