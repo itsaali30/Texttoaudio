@@ -1,0 +1,1439 @@
+{
+  "name": "Sheet Titles to Audio to Cloudinary",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
+      },
+      "name": "Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -2080,
+        -1072
+      ],
+      "id": "e81a1ecf-abdf-4d76-a4a8-d21b59146e81"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+        "range": "Sheet1!A:E",
+        "options": {}
+      },
+      "name": "Read Pending Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        -1856,
+        -1072
+      ],
+      "id": "41fbb3a5-1c65-4b46-9062-f9b7f4d2b7a1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "return items.map(item => {\n  const title = item.json.Title;\n  return {\n    json: {\n      sno: item.json.Sno,\n      title: title,\n      hindiPrompt: `Write a 200-word children's story in Hindi titled \"${title}\"`,\n      englishPrompt: `Write a 200-word children's story in English titled \"${title}\"`\n    }\n  };\n});"
+      },
+      "name": "Prepare Prompts",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        -1072
+      ],
+      "id": "c25972d5-7e42-47db-ad1a-997a58ed1cbb"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{$json.englishPrompt}}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -1184,
+        -1184
+      ],
+      "id": "4fb9a258-eeff-40a3-8cb7-8d899efce442",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1184,
+        -960
+      ],
+      "id": "8dcc9278-f368-48d6-9eab-dc1cb87b7045",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OMizIBCVWkH0UqJY",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{$json.englishPrompt}}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -1056,
+        -960
+      ],
+      "id": "9b7771a0-e3ca-4156-b146-6cad6149e5d2",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "maxItems": 15
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -1408,
+        -1072
+      ],
+      "id": "e718754c-0286-4738-9fcd-b1aec36870ab",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+          "mode": "list",
+          "cachedResultName": "N8N",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 539318196,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit#gid=539318196"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "English": "={{$json.output}}",
+            "Sno": "={{$('Limit1').item.json.sno}}",
+            "Status": "Successful",
+            "Title": "={{$('Limit1').item.json.title}}"
+          },
+          "matchingColumns": [
+            "Sno"
+          ],
+          "schema": [
+            {
+              "id": "Sno",
+              "displayName": "Sno",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Hindi",
+              "displayName": "Hindi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "English",
+              "displayName": "English",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -832,
+        -1072
+      ],
+      "id": "df55a213-50af-4b43-b1b5-e01862b27089",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "delete",
+        "sheetId": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+        "toDelete": {
+          "rows": [
+            {
+              "sheetId": 0,
+              "startIndex": 1,
+              "amount": 15
+            }
+          ]
+        }
+      },
+      "name": "Read Pending Rows1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -1072
+      ],
+      "id": "ce3b5c3e-b2ba-4204-aff6-6168f503bbf3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst results = [];\n\nif (data && data.English && data.English.trim()) {\n  results.push({\n    fileName: `En_${Date.now()}.mp3`,\n    text: data.English,\n    languageCode: 'en-us',\n    Sno:data.Sno\n  });\n}\n\nreturn results;"
+      },
+      "id": "2e00e27d-dfbd-4f08-b1ef-9b7eb7cc6c90",
+      "name": "Process Titles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        -752
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+        "range": "Sheet2!A:E",
+        "options": {}
+      },
+      "name": "Read Pending Rows2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        -1856,
+        -752
+      ],
+      "id": "b1aa2a09-a83e-419b-a478-5f943d512ba7",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        -752
+      ],
+      "id": "ad4e368e-c759-47bd-a2ad-ff5fe10c98da",
+      "name": "Limit"
+    },
+    {
+      "parameters": {},
+      "id": "96539c44-3b9b-4e47-bb42-2104ceea381a",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2080,
+        -752
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.voicerss.org/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "de2fdeec1ee54b9f883aaa9dc32c7659"
+            },
+            {
+              "name": "hl",
+              "value": "en-us"
+            },
+            {
+              "name": "c",
+              "value": "MP3"
+            },
+            {
+              "name": "f",
+              "value": "16khz_16bit_stereo"
+            },
+            {
+              "name": "src",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "563f8f91-e53e-46ea-be44-1c2a8e721d9d",
+      "name": "Text to Speech",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1856,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/upload",
+        "authentication": "basicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "upload_preset",
+              "value": "YOUR_UPLOAD_PRESET"
+            },
+            {
+              "name": "public_id",
+              "value": "={{ $json.fileName }}"
+            },
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a384180c-5222-4749-95c1-ff92050d320d",
+      "name": "Upload to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1632,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const cloudinaryResponse = item.json;\n  \n  results.push({\n    json: {\n      title: item.json.title,\n      fileName: item.json.fileName,\n      cloudinaryUrl: cloudinaryResponse.secure_url,\n      publicId: cloudinaryResponse.public_id,\n      format: cloudinaryResponse.format,\n      size: cloudinaryResponse.bytes,\n      duration: cloudinaryResponse.duration,\n      directUrl: cloudinaryResponse.secure_url.replace('/upload/', '/upload/fl_attachment/'),\n      audioPlayer: `<audio controls><source src=\"${cloudinaryResponse.secure_url}\" type=\"audio/mpeg\"></audio>`\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "002e52f3-e8a8-43ac-a634-674d29230c0d",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "abd3b6e0-f299-4110-80ee-b20ccb109617",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        -1184,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nconst results = [];\n\ninputItems.forEach((item, index) => {\n  const json = item.json;\n  \n  // Extract title - adjust based on your sheet structure\n  let title = json.title || json.A || json['Column A'] || json.Title || json.name;\n  \n  if (title && typeof title === 'string' && title.trim()) {\n    results.push({\n      title: title,\n      fileName: `audio_${Date.now()}_${index}.mp3`,\n      text: title\n    });\n  }\n});\n\nreturn results;"
+      },
+      "id": "2af74650-f849-4e95-a057-482cc7349148",
+      "name": "Process Titles1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2080,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.voicerss.org/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "de2fdeec1ee54b9f883aaa9dc32c7659"
+            },
+            {
+              "name": "hl",
+              "value": "={{ $json.languageCode }}"
+            },
+            {
+              "name": "c",
+              "value": "MP3"
+            },
+            {
+              "name": "f",
+              "value": "16khz_16bit_stereo"
+            },
+            {
+              "name": "src",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "v",
+              "value": "Linda"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8e690aa0-2090-405a-98a6-317acd66a3a1",
+      "name": "Text to Speech1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1184,
+        -752
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst results = [];\n\nif (data && data.Hindi && data.Hindi.trim()) {\n  results.push({\n    fileName: `Hi_${Date.now()}.mp3`,\n    text: data.Hindi,\n    languageCode: 'hi-in'\n  });\n}\n\nreturn results;"
+      },
+      "id": "2e51e7f4-16f0-4491-a7e7-2ecac8178e45",
+      "name": "Process Titles2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2080,
+        -528
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "uploadFile",
+        "resource_type_file": "video",
+        "additionalFieldsFile": {
+          "public_id": "={{ $('Read Pending Rows2').item.json.Sno }}"
+        }
+      },
+      "type": "n8n-nodes-cloudinary.cloudinary",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        -752
+      ],
+      "id": "54d5bab6-ae80-4288-816d-0ecaaddce12d",
+      "name": "Upload an asset from file data",
+      "credentials": {
+        "cloudinaryApi": {
+          "id": "BYeOJ3EdS85sOEo4",
+          "name": "Cloudinary account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+          "mode": "list",
+          "cachedResultName": "N8N",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1171582238,
+          "mode": "list",
+          "cachedResultName": "Sheet3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit#gid=1171582238"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "public_id": "={{ $json.public_id }}",
+            "created_at": "={{ $json.created_at }}",
+            "url": "={{ $json.url }}",
+            "secure_url": "={{ $json.secure_url }}",
+            "duration": "={{ $json.duration }}",
+            "sno": "={{ $('Text to Speech1').item.json.Sno }}",
+            "story": "={{ $('Text to Speech1').item.json.text }}",
+            "title": "={{ $('Limit').item.json.Title }}"
+          },
+          "matchingColumns": [
+            "public_id"
+          ],
+          "schema": [
+            {
+              "id": "public_id",
+              "displayName": "public_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "secure_url",
+              "displayName": "secure_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "duration",
+              "displayName": "duration",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sno",
+              "displayName": "sno",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "story",
+              "displayName": "story",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -736,
+        -752
+      ],
+      "id": "4988904f-ccca-480e-9bdc-6ffe010cd2a7",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+          "mode": "list",
+          "cachedResultName": "N8N",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 539318196,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit#gid=539318196"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -512,
+        -752
+      ],
+      "id": "c071dc98-0ae8-4436-8688-4ad08f8817a8",
+      "name": "Delete rows or columns from sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=variations = [\n    \"close-up view\",\n    \"wide angle\",\n    \"overhead view\",\n    \"dynamic action\",\n    \"emotional moment\",\n    \"sunset lighting\",\n    \"rainy scene\",\n    \"magical atmosphere\",\n    \"playful interaction\",\n    \"dramatic perspective\"\n  ];\nEg .json\n{\n title: {{$json.title}},\n style:animated cartoon, \nsize 16:9\"\",\n  \"\"sence1\"\": {\n    \"\"description\"\": Select random varition ;\n    \"\"prompt\"\": ``;\n```\n }\nwrite prompt & desription in json, for this story ={{ $json.story}} and count of sence {{ $json.duration }} dived by 12\nremove \"\"\"\"\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -1856,
+        -1728
+      ],
+      "id": "cb65e546-9758-41b2-be0f-7d39e78d6277",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1856,
+        -1504
+      ],
+      "id": "3ca02247-74a0-418a-b662-1c0a48c9309b",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OMizIBCVWkH0UqJY",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{$json.prompt}} make json like {title:,\n{\nsence1:{\ndescription:\nprompt:\n} TO LAST SENCE\n}}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -1728,
+        -1504
+      ],
+      "id": "b9a0bbc7-1f35-4c37-8a0f-3128ddc4ba15",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+        "range": "Sheet3!A:Z",
+        "options": {}
+      },
+      "name": "Read Pending Rows3",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        -2080,
+        -1728
+      ],
+      "id": "ce1dfdb3-758c-4870-b175-d9c67c800b04",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0",
+          "mode": "list",
+          "cachedResultName": "N8N",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1088640362,
+          "mode": "list",
+          "cachedResultName": "Sheet5",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1eYW1NrfVQw-rWdxRdgC_rqMvFwgKdWPuE3hMWTODtt0/edit#gid=1088640362"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "title": "={{ $json.output.title }}",
+            "size": "={{ $json.output.size }}",
+            "style": "={{ $json.output.style }}",
+            "scene1": "={{ $json.output.scene1 }}",
+            "scene2": "={{ $json.output.scene2 }}",
+            "scene3": "={{ $json.output.scene3 }}",
+            "scene4": "={{ $json.output.scene4 }}",
+            "scene5": "={{ $json.output.scene5 }}",
+            "scene6": "={{ $json.output.scene6 }}",
+            "scene7": "={{ $json.output.scene7}}",
+            "scene8": "={{ $json.output.scene8 }}",
+            "scene9": "={{ $json.output.scene9 }}",
+            "scene10": "={{ $json.output.scene10 }}",
+            "scene11": "={{ $json.output.scene11}}",
+            "scene12": "={{ $json.output.scene12}}",
+            "scene13": "={{ $json.output.scene13}}",
+            "scene14": "={{ $json.output.scene14}}",
+            "scene16": "={{ $json.output.scene16}}",
+            "scene15": "={{ $json.output.scene15}}",
+            "scene17": "={{ $json.output.scene17}}",
+            "scene19": "={{ $json.output.scene19}}",
+            "scene18": "={{ $json.output.scene18}}",
+            "scene20": "={{ $json.output.scene20}}",
+            "scene22": "={{ $json.output.scene22}}",
+            "scene21": "={{ $json.output.scene21}}",
+            "scene23": "={{ $json.output.scene23}}",
+            "scene25": "={{ $json.output.scene25}}",
+            "scene24": "={{ $json.output.scene24}}",
+            "output": "Success"
+          },
+          "matchingColumns": [
+            "title"
+          ],
+          "schema": [
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "style",
+              "displayName": "style",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "size",
+              "displayName": "size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene1",
+              "displayName": "scene1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene2",
+              "displayName": "scene2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene3",
+              "displayName": "scene3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene4",
+              "displayName": "scene4",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene5",
+              "displayName": "scene5",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene6",
+              "displayName": "scene6",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene7",
+              "displayName": "scene7",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene8",
+              "displayName": "scene8",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene9",
+              "displayName": "scene9",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene10",
+              "displayName": "scene10",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene11",
+              "displayName": "scene11",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene12",
+              "displayName": "scene12",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene13",
+              "displayName": "scene13",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene14",
+              "displayName": "scene14",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene15",
+              "displayName": "scene15",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene16",
+              "displayName": "scene16",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene17",
+              "displayName": "scene17",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene18",
+              "displayName": "scene18",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene19",
+              "displayName": "scene19",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene20",
+              "displayName": "scene20",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene21",
+              "displayName": "scene21",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene22",
+              "displayName": "scene22",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene23",
+              "displayName": "scene23",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene24",
+              "displayName": "scene24",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scene25",
+              "displayName": "scene25",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1504,
+        -1728
+      ],
+      "id": "8adec3e6-78b6-4488-b8b3-b5a9dd479fbb",
+      "name": "Append or update row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FfOQlnttuDdZa1SA",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// n8n Function Node: Generate unique scene prompts from Title, Story, Duration\n\nreturn items.flatMap(item => {\n  const sno = item.json.Sno;\n  const title = item.json.Title || \"Untitled\";\n  const story = item.json.Story || title;\n  const duration = item.json.Duration || 93; // default 93 seconds\n\n  // Calculate number of images: 1 image per 15 seconds\n  const imagesCount = Math.ceil(duration / 10);\n  const scenes = [];\n\n  // Variations to make each scene unique\n  const variations = [\n    \"close-up view\",\n    \"wide angle\",\n    \"overhead view\",\n    \"dynamic action\",\n    \"emotional moment\",\n    \"sunset lighting\",\n    \"rainy scene\",\n    \"magical atmosphere\",\n    \"playful interaction\",\n    \"dramatic perspective\"\n  ];\n\n  for (let i = 1; i <= imagesCount; i++) {\n    const variation = variations[i % variations.length]; // cycle through variations\n    scenes.push({\n      json: {\n        sno,\n        title,\n        scene: i,\n        prompt: `Make prompt bing image creator , Scene ${i}: \"${story}\" — ${variation}, animated cartoon style, size 16:9`\n      }\n    });\n  }\n\n  return scenes;\n});\n"
+      },
+      "name": "Prepare Prompts2",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -2080,
+        -80
+      ],
+      "id": "5ee52c52-09df-41da-832d-204d0767b8b5"
+    },
+    {
+      "parameters": {
+        "functionCode": "// n8n Function Node: Generate unique scene prompts from Title, Story, Duration\n\nreturn items.flatMap(item => {\n  const sno = item.json.Sno;\n  const title = item.json.Title || \"Untitled\";\n  const story = item.json.Story || title;\n  const duration = item.json.Duration || 93; // default 93 seconds\n\n  // Calculate number of images: 1 image per 15 seconds\n  const imagesCount = Math.ceil(duration / 10);\n  const scenes = [];\n\n  // Variations to make each scene unique\n  const variations = [\n    \"close-up view\",\n    \"wide angle\",\n    \"overhead view\",\n    \"dynamic action\",\n    \"emotional moment\",\n    \"sunset lighting\",\n    \"rainy scene\",\n    \"magical atmosphere\",\n    \"playful interaction\",\n    \"dramatic perspective\"\n  ];\n\n  for (let i = 1; i <= imagesCount; i++) {\n    const variation = variations[i % variations.length]; // cycle through variations\n    scenes.push({\n      json: {\n        sno,\n        title,\n        scene: i,\n        prompt: `Make prompt bing image creator , Scene ${i}: \"${story}\" — ${variation}, animated cartoon style, size 16:9`\n      }\n    });\n  }\n\n  return scenes;\n});\n"
+      },
+      "name": "Prepare Prompts3",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -2080,
+        -1408
+      ],
+      "id": "bef1bd71-faeb-44fd-ae9d-79f5510c39ce"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "\n{\n  \"title\": \"Spark Kids: Rise of the Glow\",\n  \"style\": \"animated cartoon\",\n  \"size\": \"16:9\",\n  \"scene1\": {\n    \"description\": \"wide angle\",\n    \"prompt\": \"A wide angle shot of a futuristic city made of shimmering chrome, showcasing the grand RoboHero Academy building in the center. Tiny, diverse robots are bustling around the academy, creating an inspiring and busy atmosphere.\"\n  },\n  \"scene2\": {\n    \"description\": \"close-up view\",\n    \"prompt\": \"A close-up view of three distinct small robots: Sparky, a cute bot with mismatched gears, looking earnest and dreaming of rescuing kittens; Zoom, a sleek, fast-looking robot with a determined expression, imagining stopping runaway trains; and Bolt, a slightly clumsy repair-bot, looking hopeful to help, all with expressive faces.\"\n  },\n  \"scene3\": {\n    \"description\": \"dynamic action\",\n    \"prompt\": \"Dynamic action shot of Sparky, the little robot, bravely and skillfully climbing a tall, wobbly, futuristic skyscraper obstacle. Sparky shows immense focus and determination as gears whir, easily acing the challenge.\"\n  },\n  \"scene4\": {\n    \"description\": \"dramatic perspective\",\n    \"prompt\": \"A dramatic perspective of Zoom, the speedster robot, zooming effortlessly and swiftly across a dangerous-looking, glowing lava river obstacle. Motion blur emphasizes incredible speed and agility as Zoom crosses to the other side.\"\n  },\n  \"scene5\": {\n    \"description\": \"playful interaction\",\n    \"prompt\": \"Bolt, the clumsy repair-bot, amidst a tricky, futuristic maze. He's shown in a playful interaction, carefully fixing a broken wall with his tools (despite a few bumps and scrapes), allowing other small robots to find their way through, showing clever ingenuity and helpfulness.\"\n  },\n  \"scene6\": {\n    \"description\": \"overhead view\",\n    \"prompt\": \"An overhead view of the shimmering chrome city in distress. A massive, menacing giant robot spider is seen tangled in glowing power cables, causing widespread disruption and sending out an urgent, pulsing distress signal across the cityscape.\"\n  },\n  \"scene7\": {\n    \"description\": \"dynamic action\",\n    \"prompt\": \"A chaotic yet heroic dynamic action scene. Sparky is bravely scaling the giant robot spider, Zoom is racing at high speed through the city streets to warn citizens, and Bolt is intently rewiring the tangled power cables with glowing, sparking tools, all working simultaneously with high energy.\"\n  },\n  \"scene8\": {\n    \"description\": \"emotional moment\",\n    \"prompt\": \"An emotional moment of triumph. Sparky, Zoom, and Bolt, the three small robot heroes, stand together in the now-safe, shimmering chrome city. Citizens cheer in the background, and a warm, proud glow emanates from the heroes, symbolizing their big hearts and successful teamwork. Inspiring and heartwarming.\"\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1600,
+        -1424
+      ],
+      "id": "b38f3b67-ae42-427e-bb10-66f5ccd7af60",
+      "name": "Structured Output Parser"
+    }
+  ],
+  "pinData": {
+    "Cron": [
+      {
+        "json": {}
+      }
+    ]
+  },
+  "connections": {
+    "Cron": {
+      "main": [
+        [
+          {
+            "node": "Read Pending Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Pending Rows": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prompts": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Read Pending Rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Titles": {
+      "main": [
+        [
+          {
+            "node": "Text to Speech1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Pending Rows2": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Process Titles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Pending Rows2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text to Speech": {
+      "main": [
+        [
+          {
+            "node": "Upload to Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Success Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Titles1": {
+      "main": [
+        [
+          {
+            "node": "Text to Speech",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Titles2": {
+      "main": [
+        []
+      ]
+    },
+    "Text to Speech1": {
+      "main": [
+        [
+          {
+            "node": "Upload an asset from file data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload an asset from file data": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Pending Rows3": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "27bffa76-8fde-41ba-9ef6-4d73e5755063",
+  "meta": {
+    "templateId": "ready-to-run-ai-workflow-v1",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cbe0aa2191ef1e5d910ddb595c4004911f41c5f5c98693d9d43d5e4a31069f9e"
+  },
+  "id": "gLdUNCcaAc43iGA5",
+  "tags": []
+}
